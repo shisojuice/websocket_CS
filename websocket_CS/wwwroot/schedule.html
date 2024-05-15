@@ -25,7 +25,7 @@
             .grid-rowcontainer > div {
                 min-height: 30px;
                 max-height: 30px;
-                padding-left:5px;
+                padding-left: 5px;
                 min-width: 85px;
                 max-width: 85px;
                 background-color: white; /* グリッドセルの背景色 */
@@ -60,7 +60,7 @@
             const y = event.pageY;
             console.log(`Click position: (${x}, ${y})`);
         });
-        var mainButton = document.getElementById("main");
+        var main = document.getElementById("main");
         var body = document.querySelector("body");
         var socket;
 
@@ -102,11 +102,11 @@
         }
 
         //sendButton.onclick = function () {
-            // e.preventDefault();
-            // if (!socket || socket.readyState !== WebSocket.OPEN) {
-            //     alert("socket not connected");
-            // }
-            // socket.close(1000, "Closing from client");
+        // e.preventDefault();
+        // if (!socket || socket.readyState !== WebSocket.OPEN) {
+        //     alert("socket not connected");
+        // }
+        // socket.close(1000, "Closing from client");
         //};
 
         // sendButton.onclick = function () {
@@ -131,8 +131,8 @@
                 .then(ret => {
                     localStorage.setItem("rowdata", JSON.stringify(ret.rows));
                     localStorage.setItem("objdata", JSON.stringify(ret.logs));
-                    mainButton.innerHTML += ret.gridhtml;     
-                    body.innerHTML += ret.objhtml;
+                    main.innerHTML += ret.gridhtml;
+                    main.innerHTML += ret.objhtml;
                 });
             //Socket_接続確立
             socket = new WebSocket(connectionUrl);
@@ -160,6 +160,22 @@
                 .replace(/</g, '&lt;')
                 .replace(/>/g, '&gt;');
         }
+        function setDraggedStyle(event) {
+            event.dataTransfer.dropEffect = 'move'; // ドロップ効果を設定
+            event.dataTransfer.effectAllowed = 'move'; // 許可されている効果を設定
+            event.target.style.cursor = 'grabbing'; // カーソルのスタイルを設定
+        }
+        function setDraggedEnd(event) {
+            console.log(event);
+            const x = event.pageX;
+            const y = event.pageY;
+            event.target.style.left = x + "px";
+            event.target.style.top = y + "px";
+        }
+        main.addEventListener('dragover', (event) => {
+            event.preventDefault(); // デフォルトの動作をキャンセル
+            event.dataTransfer.dropEffect = 'move'; // ドロップ効果を設定
+        });
     </script>
 </body>
 </html>
