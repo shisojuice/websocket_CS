@@ -1,0 +1,165 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title></title>
+    <style>
+        #main {
+            padding: 15px;
+            max-width: calc(90px + (60px * 24) + 24px);
+            min-width: calc(90px + (60px * 24) + 24px);
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+        }
+
+        .grid-rowcontainer {
+            max-width: 90px;
+            min-width: 90px;
+            display: grid;
+            gap: 1px;
+            background-color: #ddd; /* 罫線の色 */
+            outline: 1px solid black;
+            font-size: 20px;
+        }
+
+            .grid-rowcontainer > div {
+                min-height: 30px;
+                max-height: 30px;
+                padding-left:5px;
+                min-width: 85px;
+                max-width: 85px;
+                background-color: white; /* グリッドセルの背景色 */
+            }
+
+        .grid-maincontainer {
+            max-width: calc((60px * 24) + 24px);
+            min-width: calc((60px * 24) + 24px);
+            display: grid;
+            grid-template-columns: repeat(24, 1fr); /* 24列 */
+            gap: 1px; /* 罫線の太さ */
+            background-color: #ddd; /* 罫線の色 */
+            outline: 1px solid black;
+        }
+
+            .grid-maincontainer > div {
+                min-height: 30px;
+                max-height: 30px;
+                min-width: 60px;
+                max-width: 60px;
+                background-color: white; /* グリッドセルの背景色 */
+            }
+    </style>
+</head>
+<body>
+    <h1>WebSocket Schedule Sample Application</h1>
+    <div id="main">
+    </div>
+    <script>
+        document.addEventListener('click', function (event) {
+            const x = event.pageX;
+            const y = event.pageY;
+            console.log(`Click position: (${x}, ${y})`);
+        });
+        var mainButton = document.getElementById("main");
+        var body = document.querySelector("body");
+        var socket;
+
+        var scheme = document.location.protocol === "https:" ? "wss" : "ws";
+        var port = document.location.port ? (":" + document.location.port) : "";
+
+        const connectionUrl = scheme + "://" + document.location.hostname + port + "/ws_schedules";
+
+        function updateState() {
+            function disable() {
+                // sendButton.disabled = true;
+            }
+            function enable() {
+                // sendButton.disabled = false;
+            }
+
+            if (!socket) {
+                disable();
+            } else {
+                switch (socket.readyState) {
+                    case WebSocket.CLOSED:
+                        disable();
+                        connectButton.disabled = false;
+                        break;
+                    case WebSocket.CLOSING:
+                        disable();
+                        break;
+                    case WebSocket.CONNECTING:
+                        disable();
+                        break;
+                    case WebSocket.OPEN:
+                        enable();
+                        break;
+                    default:
+                        disable();
+                        break;
+                }
+            }
+        }
+
+        //sendButton.onclick = function () {
+            // e.preventDefault();
+            // if (!socket || socket.readyState !== WebSocket.OPEN) {
+            //     alert("socket not connected");
+            // }
+            // socket.close(1000, "Closing from client");
+        //};
+
+        // sendButton.onclick = function () {
+        //     if (!socket || socket.readyState !== WebSocket.OPEN) {
+        //         alert("socket not connected");
+        //     }
+        //     //Socket_送信
+        //     var data = "";//sendMessage.value;
+        //     socket.send(data);
+        //     commsLog.innerHTML += '<tr>' +
+        //         '<td class="commslog-client">Client</td>' +
+        //         '<td class="commslog-server">Server</td>' +
+        //         '<td class="commslog-data">' + htmlEscape(data) + '</td></tr>';
+        // };
+
+        window.addEventListener("DOMContentLoaded", (event) => {
+            //過去ログ
+            localStorage.removeItem("rowdata");
+            localStorage.removeItem("objdata");
+            fetch('/api/schedules')
+                .then(response => response.json())
+                .then(ret => {
+                    localStorage.setItem("rowdata", JSON.stringify(ret.rows));
+                    localStorage.setItem("objdata", JSON.stringify(ret.logs));
+                    mainButton.innerHTML += ret.gridhtml;     
+                    body.innerHTML += ret.objhtml;
+                });
+            //Socket_接続確立
+            socket = new WebSocket(connectionUrl);
+            socket.onopen = function (event) {
+                updateState();
+            };
+            socket.onclose = function (event) {
+                updateState();
+            };
+            socket.onerror = updateState;
+            socket.onmessage = function (event) {
+                // commsLog.innerHTML += '<tr>' +
+                //     '<td class="commslog-server">Server</td>' +
+                //     '<td class="commslog-client">Client</td>' +
+                //     '<td class="commslog-data">' + htmlEscape(event.data) + '</td></tr>';
+            };
+
+        })
+
+        function htmlEscape(str) {
+            return str.toString()
+                .replace(/&/g, '&amp;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;');
+        }
+    </script>
+</body>
+</html>
