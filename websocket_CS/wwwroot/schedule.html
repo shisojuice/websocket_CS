@@ -4,6 +4,11 @@
     <meta charset="utf-8" />
     <title></title>
     <style>
+        body {
+            min-width: 1600px;
+            max-width: 1600px;
+        }
+
         #main {
             padding: 15px;
             max-width: calc(90px + (60px * 24) + 24px);
@@ -61,7 +66,6 @@
             console.log(`Click position: (${x}, ${y})`);
         });
         var main = document.getElementById("main");
-        var body = document.querySelector("body");
         var socket;
 
         var scheme = document.location.protocol === "https:" ? "wss" : "ws";
@@ -100,37 +104,14 @@
                 }
             }
         }
-
-        //sendButton.onclick = function () {
-        // e.preventDefault();
-        // if (!socket || socket.readyState !== WebSocket.OPEN) {
-        //     alert("socket not connected");
-        // }
-        // socket.close(1000, "Closing from client");
-        //};
-
-        // sendButton.onclick = function () {
-        //     if (!socket || socket.readyState !== WebSocket.OPEN) {
-        //         alert("socket not connected");
-        //     }
-        //     //Socket_送信
-        //     var data = "";//sendMessage.value;
-        //     socket.send(data);
-        //     commsLog.innerHTML += '<tr>' +
-        //         '<td class="commslog-client">Client</td>' +
-        //         '<td class="commslog-server">Server</td>' +
-        //         '<td class="commslog-data">' + htmlEscape(data) + '</td></tr>';
-        // };
-
+        //
+        // 初期読込Event
+        //
         window.addEventListener("DOMContentLoaded", (event) => {
             //過去ログ
-            localStorage.removeItem("rowdata");
-            localStorage.removeItem("objdata");
             fetch('/api/schedules')
                 .then(response => response.json())
                 .then(ret => {
-                    localStorage.setItem("rowdata", JSON.stringify(ret.rows));
-                    localStorage.setItem("objdata", JSON.stringify(ret.logs));
                     main.innerHTML += ret.gridhtml;
                     main.innerHTML += ret.objhtml;
                 });
@@ -144,38 +125,133 @@
             };
             socket.onerror = updateState;
             socket.onmessage = function (event) {
-                // commsLog.innerHTML += '<tr>' +
-                //     '<td class="commslog-server">Server</td>' +
-                //     '<td class="commslog-client">Client</td>' +
-                //     '<td class="commslog-data">' + htmlEscape(event.data) + '</td></tr>';
+                main.innerHTML = event.data.toString();
             };
 
         })
 
-        function htmlEscape(str) {
-            return str.toString()
-                .replace(/&/g, '&amp;')
-                .replace(/"/g, '&quot;')
-                .replace(/'/g, '&#39;')
-                .replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;');
-        }
+        //
+        // 要素移動関連Event
+        //
+        // ドラッグ開始時のタッチ位置
+        let initialTouchX, initialTouchY;
+        // 要素の初期位置
+        let initialElementX, initialElementY;
+        //start
         function setDraggedStyle(event) {
-            event.dataTransfer.dropEffect = 'move'; // ドロップ効果を設定
-            event.dataTransfer.effectAllowed = 'move'; // 許可されている効果を設定
-            event.target.style.cursor = 'grabbing'; // カーソルのスタイルを設定
+            document.querySelectorAll(".resizer").forEach((x)=>{x.remove();});
+            event.dataTransfer.effectAllowed = 'move';
+            initialMouseX = event.clientX;
+            initialMouseY = event.clientY;
+            initialElementX = event.target.offsetLeft;
+            initialElementY = event.target.offsetTop;
+        }
+        function setTDraggedStyle(event) {
+            const touch = event.touches[0]; // タッチを取得
+            initialTouchX = touch.clientX;
+            initialTouchY = touch.clientY;
+            initialElementX = event.target.offsetLeft;
+            initialElementY = event.target.offsetTop;
+            console.log(event)
+        }
+        //end(move)
+        function Titletime(st, w) {
+            const hh1 = Math.floor(st / 60).toString().padStart(2, '0');
+            const mm1 = (st % 60).toString().padStart(2, '0');
+            const hh2 = Math.floor((st + w) / 60).toString().padStart(2, '0');
+            const mm2 = ((st + w) % 60).toString().padStart(2, '0');
+            return hh1 + ":" + mm1 + "～" + hh2 + ":" + mm2
+        }
+        function AdjustX(x, w) {
+            const minL = 115
+            const maxR = 1575
+            if (x < minL) return { x: minL, time: Titletime(minL - minL, w) };
+            if (x + w > maxR) return { x: maxR - w, time: Titletime(maxR - w - minL, w) };
+            return { x: x, time: Titletime(x - minL, w) };
+        }
+        function AdjustY(y) {
+            const rowH = 30;
+            const h = 20;
+            const minT = 105;
+            const rowcount = Number(document.querySelector(".grid-rowcontainer").dataset.rowcount);
+            let rowTop_max = 0;
+            for (let i = 0; i < rowcount; i++) {
+                const rowTop = minT + (i * (rowH + 1));// +1はgap分
+                const rowBottom = rowTop + 30 + 1;
+                if (i == rowcount - 1) rowTop_max = rowTop;
+                if (y >= rowTop && y <= rowBottom) return { y: rowTop + 5, ix: i };
+            }
+            if (y <= minT) return { y: minT + 5, ix: 0 };
+            return { y: rowTop_max + 5, ix: rowcount - 1 };
+        }
+        function setPosition(dx, dy) {
+            const x = initialElementX + dx; // 要素の初期座標に移動分追加
+            const y = initialElementY + dy;
+            const w = event.target.offsetWidth;
+            console.log(w);
+            const adX = AdjustX(x, w);
+            event.target.title = adX.time + "_" + event.target.value;
+            event.target.style.left = `${adX.x}px`;
+
+            const adY = AdjustY(y);
+            const rowid = document.querySelector('[data-roworder="' + adY.ix + '"]').dataset.rowid;
+            event.target.dataset.rowid = rowid;
+            event.target.style.top = `${adY.y}px`;
+        }
+        function sendData() {
+            if (!socket || socket.readyState !== WebSocket.OPEN) {
+                alert("socket not connected");
+            }
+            //Socket_送信
+            var data = main.innerHTML;//sendMessage.value;
+            socket.send(data);
         }
         function setDraggedEnd(event) {
-            console.log(event);
-            const x = event.pageX;
-            const y = event.pageY;
-            event.target.style.left = x + "px";
-            event.target.style.top = y + "px";
+            event.preventDefault();
+            const dx = event.clientX - initialMouseX;
+            const dy = event.clientY - initialMouseY;
+            setPosition(dx, dy);
+            sendData();
         }
-        main.addEventListener('dragover', (event) => {
+        function setTDraggedEnd(event) {
+            console.log(event);
+            event.preventDefault();
+            const touch = event.touches[0]; // タッチを取得
+            const dx = touch.clientX - initialTouchX;
+            const dy = touch.clientY - initialTouchY;
+            setPosition(dx, dy);
+            sendData();
+        }
+        //over
+        function setDragOverStyle(event) {
             event.preventDefault(); // デフォルトの動作をキャンセル
-            event.dataTransfer.dropEffect = 'move'; // ドロップ効果を設定
-        });
+        }
+        //
+        // 要素resize系Event
+        //
+        //focus
+        function wideFocus(event) {
+            const rect = event.target.getBoundingClientRect();
+            const x = rect.left;
+            const y = rect.top;
+            const w = event.target.offsetWidth;
+            const rDiv = document.createElement('div');
+            rDiv.classList.add('resizer');
+            rDiv.style.width = "5px"; rDiv.style.height = "20px"; 
+            rDiv.style.zIndex = "99999"; rDiv.style.position = "absolute";
+            rDiv.style.backgroundColor = "pink";
+            rDiv.style.top = `${y}px`;
+            rDiv.style.left = `${x - 5}px`;
+            rDiv.dataset.objid = event.target.id;
+            main.appendChild(rDiv);
+            const lDiv = rDiv.cloneNode(true);
+            lDiv.style.left = `${x + w}px`;
+            main.appendChild(lDiv);
+        }
+        //blur
+        function wideBlur(event) {
+            document.querySelectorAll(".resizer").forEach((x)=>{x.remove();});
+        }
     </script>
 </body>
 </html>

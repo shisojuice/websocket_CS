@@ -16,7 +16,7 @@ public class ScheduleDto
     public string rowId { get; set; } = "";
     public decimal from { get; set; } = 0;
     public decimal to { get; set; } = 0;
-    public string value { get; set; } = "";
+    public string value { get; set; } = "";// & < > ` " ' この6記号は使用不可
 }
 public class rowDto
 {
@@ -27,17 +27,15 @@ public class rowDto
 public class BoardDto
 {
     public string gridhtml { get; set; } = "";
-    public List<rowDto> rows { get; set; } = new List<rowDto>();
     public string objhtml { get; set; } = "";
-    public List<ScheduleDto> logs { get; set; } = new List<ScheduleDto>();
 }
 public class WebSocketScheduleController : ControllerBase
 {
     public static List<ScheduleDto> pastLogs =
         new List<ScheduleDto>() {
-            new ScheduleDto() { id = "obj1", x = 235, y = 110, z = 1, w = 90, bkc = "green" , rowId = "rowId0" , from = 0, to = 0, value = "test1" },
-            new ScheduleDto() { id = "obj2", x = 295, y = 140, z = 1, w = 90, bkc = "green" , rowId = "rowId1" , from = 0, to = 0, value = "test2"  },
-            new ScheduleDto() { id = "obj3", x = 355, y = 170, z = 1, w = 90, bkc = "green" , rowId = "rowId2" , from = 0, to = 0, value = "test3"  }
+            new ScheduleDto() { id = "obj1", x = 235, y = 110, z = 1, w = 90, bkc = "green" , rowId = "rowId0" , from = 200, to = 338, value = "test1" },
+            new ScheduleDto() { id = "obj2", x = 295, y = 140, z = 1, w = 90, bkc = "green" , rowId = "rowId1" , from = 300, to = 438, value = "test2"  },
+            new ScheduleDto() { id = "obj3", x = 355, y = 170, z = 1, w = 90, bkc = "green" , rowId = "rowId2" , from = 400, to = 538, value = "test3"  }
         };
     public static List<rowDto> defrows =
     new List<rowDto>() {
@@ -55,28 +53,29 @@ public class WebSocketScheduleController : ControllerBase
     public BoardDto GetMessages()
     {
         BoardDto board = new BoardDto();
-        board.rows = defrows;
-        board.logs = pastLogs;
         string rowhtml = "";
-        for (int i = 0; i < board.rows.Count; i++)
+        for (int i = 0; i < defrows.Count; i++) // defrows はrowOrder順で取得想定
         {
-            rowhtml = rowhtml + @"<div data-rowId=" + board.rows[i].rowId + @">" + board.rows[i].name + @"</div>";
+            rowhtml = rowhtml 
+                + @"<div data-rowid=" + defrows[i].rowId + @" data-roworder=" + defrows[i].rowOrder + @" >" + defrows[i].name + @"</div>";
         }
-        board.gridhtml = board.gridhtml + @"<div class=""grid-rowcontainer"" style=""grid-template-rows: repeat(" + board.rows.Count + @", 1fr);"" >" + rowhtml + @"</div>";
+        board.gridhtml = board.gridhtml
+            + @"<div class=""grid-rowcontainer"" data-rowcount=" + defrows.Count + @" style=""grid-template-rows: repeat(" + defrows.Count + @", 1fr);"" >" + rowhtml + @"</div>";
         string cellhtml = "";
-        for (int i = 0; i < board.rows.Count * 24; i++)
+        for (int i = 0; i < defrows.Count * 24; i++)
         {
             cellhtml = cellhtml + "<div></div>";
         }
-        board.gridhtml = board.gridhtml + @"<div class=""grid-maincontainer"" style=""grid-template-rows: repeat(" + board.rows.Count + @", 1fr);"" >" + cellhtml + @"</div>";
+        board.gridhtml = board.gridhtml
+            + @"<div class=""grid-maincontainer"" ondragover=""setDragOverStyle(event)"" style=""grid-template-rows: repeat(" + defrows.Count + @", 1fr);"" >" + cellhtml + @"</div>";
 
-        for (int i = 0; i < board.logs.Count; i++)
+        for (int i = 0; i < pastLogs.Count; i++)
         {
-            var log = board.logs[i];
+            var log = pastLogs[i];
             string attr = " id=" + log.id
                         + @" style=""height=20px;width:" + log.w + "px; position:absolute;left:" + log.x + "px;top:" + log.y + "px;z-index:" + log.z + @";background-color:" + log.bkc + @";"""
                         + " value=" + log.value
-                        + " draggable=true  ondragstart=\"setDraggedStyle(event)\" ondragend=\"setDraggedEnd(event)\" data-rowid=" + log.rowId
+                        + @" draggable=true  ondragstart=""setDraggedStyle(event)"" ondragend=""setDraggedEnd(event)""  ontouchstart=""setTDraggedStyle(event)"" ontouchmove=""setTDraggedEnd(event)"" onfocus=""wideFocus(event)"" onblur=""wideBlur(event)"" data-rowid=" + log.rowId
                         + " title=" + strTime(log.from) + "～" + strTime(log.to) + "_" + log.value;
             board.objhtml = board.objhtml + @"<input" + attr + "></input>";
         }
@@ -102,7 +101,7 @@ public class WebSocketScheduleController : ControllerBase
 
     private static async Task Echo(WebSocket webSocket)
     {
-        var buffer = new byte[1024 * 4];
+        var buffer = new byte[1024 * 16];
         var receiveResult = await webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
 
         while (!receiveResult.CloseStatus.HasValue)
