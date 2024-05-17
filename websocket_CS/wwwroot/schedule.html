@@ -152,7 +152,6 @@
             initialTouchY = touch.clientY;
             initialElementX = event.target.offsetLeft;
             initialElementY = event.target.offsetTop;
-            console.log(event)
         }
         //end(move)
         function Titletime(st, w) {
@@ -188,7 +187,6 @@
             const x = initialElementX + dx; // 要素の初期座標に移動分追加
             const y = initialElementY + dy;
             const w = event.target.offsetWidth;
-            console.log(w);
             const adX = AdjustX(x, w);
             event.target.title = adX.time + "_" + event.target.value;
             event.target.style.left = `${adX.x}px`;
@@ -213,36 +211,60 @@
             setPosition(dx, dy);
             sendData();
         }
+        let touchend_drag = false; // touchendが、dragendかclickかを判定
         function setTDraggedEnd(event) {
-            console.log(event);
             event.preventDefault();
             const touch = event.touches[0]; // タッチを取得
             const dx = touch.clientX - initialTouchX;
             const dy = touch.clientY - initialTouchY;
             setPosition(dx, dy);
-            sendData();
+            touchend_drag = true;
+        }
+        function setTDraggedEnd2(event) {
+            if (touchend_drag) {
+                touchend_drag = false;
+                event.preventDefault();
+                sendData();
+            }
         }
         //over
         function setDragOverStyle(event) {
-            event.preventDefault(); // デフォルトの動作をキャンセル
+            event.preventDefault();
+            event.dataTransfer.dropEffect = "move";
         }
         //
         // 要素resize系Event
         //
+        document.addEventListener('drag', function (event) {
+            document.querySelectorAll(".resizer").forEach((x) => { x.remove(); });
+        });
+        document.addEventListener('touchmove', function (event) {
+            document.querySelectorAll(".resizer").forEach((x) => { x.remove(); });
+        });
+        function se(event) {
+            console.log("a")
+        }
         //focus
         function wideFocus(event) {
+            document.querySelectorAll(".resizer").forEach((x) => { x.remove(); });
             const rect = event.target.getBoundingClientRect();
             const x = rect.left;
             const y = rect.top;
             const w = event.target.offsetWidth;
-            const rDiv = document.createElement('div');
+            const rDiv = document.createElement('input');
+            rDiv.readOnly = true;
             rDiv.classList.add('resizer');
-            rDiv.style.width = "5px"; rDiv.style.height = "20px"; 
+            rDiv.style.width = "1px"; rDiv.style.height = "15px";
             rDiv.style.zIndex = "99999"; rDiv.style.position = "absolute";
-            rDiv.style.backgroundColor = "pink";
+            const pickercolor ="pink"
+            rDiv.style.backgroundColor = pickercolor; rDiv.style.borderColor = pickercolor; rDiv.style.outlineColor = pickercolor;
             rDiv.style.top = `${y}px`;
-            rDiv.style.left = `${x - 5}px`;
+            rDiv.style.left = `${x - 3 - 6}px`;
             rDiv.dataset.objid = event.target.id;
+            rDiv.onfocus = se(event)
+            // rDiv.ondragend = "setDraggedEnd(event)"
+            // rDiv.ontouchstart = "setTDraggedStyle(event)"
+            // rDiv.ontouchmove = "setTDraggedEnd(event)"
             main.appendChild(rDiv);
             const lDiv = rDiv.cloneNode(true);
             lDiv.style.left = `${x + w}px`;
@@ -250,7 +272,6 @@
         }
         //blur
         function wideBlur(event) {
-            document.querySelectorAll(".resizer").forEach((x)=>{x.remove();});
         }
     </script>
 </body>
