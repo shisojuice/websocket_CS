@@ -67,12 +67,14 @@
         });
         var main = document.getElementById("main");
         var socket;
-
         var scheme = document.location.protocol === "https:" ? "wss" : "ws";
         var port = document.location.port ? (":" + document.location.port) : "";
-
         const connectionUrl = scheme + "://" + document.location.hostname + port + "/ws_schedules";
 
+        //
+        // 初期読込Event
+        //　WS接続の設定を行う
+        //
         function updateState() {
             function disable() {
                 // sendButton.disabled = true;
@@ -104,9 +106,6 @@
                 }
             }
         }
-        //
-        // 初期読込Event
-        //
         window.addEventListener("DOMContentLoaded", (event) => {
             //過去ログ
             fetch('/api/schedules')
@@ -132,14 +131,18 @@
 
         //
         // 要素移動関連Event
+        // 要素をdragでX軸Y軸方向に移動させる
         //
         // ドラッグ開始時のタッチ位置
         let initialTouchX, initialTouchY;
         // 要素の初期位置
         let initialElementX, initialElementY;
+
+        const minL = 115
+        const maxR = 1575
         //start
         function setDraggedStyle(event) {
-            document.querySelectorAll(".resizer").forEach((x)=>{x.remove();});
+            document.querySelectorAll(".resizer").forEach((x) => { x.remove(); });
             event.dataTransfer.effectAllowed = 'move';
             initialMouseX = event.clientX;
             initialMouseY = event.clientY;
@@ -162,8 +165,6 @@
             return hh1 + ":" + mm1 + "～" + hh2 + ":" + mm2
         }
         function AdjustX(x, w) {
-            const minL = 115
-            const maxR = 1575
             if (x < minL) return { x: minL, time: Titletime(minL - minL, w) };
             if (x + w > maxR) return { x: maxR - w, time: Titletime(maxR - w - minL, w) };
             return { x: x, time: Titletime(x - minL, w) };
@@ -234,41 +235,142 @@
         }
         //
         // 要素resize系Event
+        // <=>をdragでX軸方向にResizeする
         //
-        document.addEventListener('drag', function (event) {
+        const pickercolor = "white";
+        const pickerW = 15;
+        const pickerH = 20;
+        let resizeEle, resizer_Ele;
+        function onResizeMove_L(event) {
+            requestAnimationFrame(() => {
+                if (minL > event.clientX) return;
+                if (maxR < event.clientX) return;
+                if (Number(resizer_Ele.dataset.width) + Number(resizer_Ele.dataset.left) - event.clientX < 5) return;
+                resizeEle.style.left = event.clientX + "px";
+                resizeEle.style.width = Number(resizer_Ele.dataset.width) + Number(resizer_Ele.dataset.left) - event.clientX + "px";
+                resizer_Ele.style.left = event.clientX + "px";
+                const adX = AdjustX(resizeEle.offsetLeft, resizeEle.offsetWidth);
+                resizeEle.title = adX.time + "_" + resizeEle.value;
+            });
+        }
+        function onResizeMove_R(event) {
+            requestAnimationFrame(() => {
+                if (minL > event.clientX) return;
+                if (maxR < event.clientX) return;
+                if (Number(resizer_Ele.dataset.width) + event.clientX - Number(resizer_Ele.dataset.right) < 5) return;
+                resizeEle.style.width = Number(resizer_Ele.dataset.width) + event.clientX - Number(resizer_Ele.dataset.right) + "px";
+                resizer_Ele.style.left = event.clientX - pickerW + "px";
+                const adX = AdjustX(resizeEle.offsetLeft, resizeEle.offsetWidth);
+                resizeEle.title = adX.time + "_" + resizeEle.value;
+            });
+        }
+        let touchend_resize = false; // touchendが、resizeendかclickかを判定
+        function onTResizeMove_L(event) {
+            requestAnimationFrame(() => {
+                const touch = event.touches[0]; // タッチを取得
+                if (minL > touch.clientX) return;
+                if (maxR < touch.clientX) return;
+                if (Number(resizer_Ele.dataset.width) + Number(resizer_Ele.dataset.left) - touch.clientX < 5) return;
+                resizeEle.style.left = touch.clientX + "px";
+                resizeEle.style.width = Number(resizer_Ele.dataset.width) + Number(resizer_Ele.dataset.left) - touch.clientX + "px";
+                resizer_Ele.style.left = touch.clientX + "px";
+                touchend_resize = true;
+            });
+        }
+        function onTResizeMove_R(event) {
+            requestAnimationFrame(() => {
+                const touch = event.touches[0]; // タッチを取得
+                if (minL > touch.clientX) return;
+                if (maxR < touch.clientX) return;
+                if (Number(resizer_Ele.dataset.width) + touch.clientX - Number(resizer_Ele.dataset.right) < 5) return;
+                resizeEle.style.width = Number(resizer_Ele.dataset.width) + touch.clientX - Number(resizer_Ele.dataset.right) + "px";
+                resizer_Ele.style.left = touch.clientX - pickerW + "px";
+                touchend_resize = true;
+            });
+        }
+        function onResizeUp(event) {
+            document.removeEventListener("mousemove", onResizeMove_R);
+            document.removeEventListener("mousemove", onResizeMove_L);
+            document.removeEventListener("touchmove", onTResizeMove_R);
+            document.removeEventListener("touchmove", onTResizeMove_L);
+            document.removeEventListener("mouseup", onResizeUp);
+            document.removeEventListener("touchend", onTResizeUp);
+            resizer_Ele.focus(); resizer_Ele.blur();
+        }
+        function onTResizeUp(event) {
+            if (touchend_resize == false) return
+            document.removeEventListener("mousemove", onResizeMove_R);
+            document.removeEventListener("mousemove", onResizeMove_L);
+            document.removeEventListener("touchmove", onTResizeMove_R);
+            document.removeEventListener("touchmove", onTResizeMove_L);
+            document.removeEventListener("mouseup", onResizeUp);
+            document.removeEventListener("touchend", onTResizeUp);
+            touchend_resize = false;
+            resizer_Ele.focus(); resizer_Ele.blur();
+        }
+        function resizeFocus(event) {
+            resizer_Ele = event.target;
+            if (resizer_Ele.dataset.right) {
+                document.addEventListener("mousemove", onResizeMove_R);
+                document.addEventListener("touchmove", onTResizeMove_R);
+            } else {
+                document.addEventListener("mousemove", onResizeMove_L);
+                document.addEventListener("touchmove", onTResizeMove_L);
+            }
+            document.addEventListener("mouseup", onResizeUp);
+            document.addEventListener("touchend", onTResizeUp);
+        }
+        function resizeBlur(event) {
+            document.removeEventListener("mousemove", onResizeMove_R);
+            document.removeEventListener("mousemove", onResizeMove_L);
+            document.removeEventListener("touchmove", onTResizeMove_R);
+            document.removeEventListener("touchmove", onTResizeMove_L);
+            document.removeEventListener("mouseup", onResizeUp);
+            document.removeEventListener("touchend", onTResizeUp);
             document.querySelectorAll(".resizer").forEach((x) => { x.remove(); });
-        });
-        document.addEventListener('touchmove', function (event) {
-            document.querySelectorAll(".resizer").forEach((x) => { x.remove(); });
-        });
-        function se(event) {
-            console.log("a")
+            sendData();
         }
         //focus
         function wideFocus(event) {
+            resizeEle = event.target;
             document.querySelectorAll(".resizer").forEach((x) => { x.remove(); });
             const rect = event.target.getBoundingClientRect();
-            const x = rect.left;
+            const x = event.target.offsetLeft;
             const y = rect.top;
             const w = event.target.offsetWidth;
-            const rDiv = document.createElement('input');
-            rDiv.readOnly = true;
-            rDiv.classList.add('resizer');
-            rDiv.style.width = "1px"; rDiv.style.height = "15px";
-            rDiv.style.zIndex = "99999"; rDiv.style.position = "absolute";
-            const pickercolor ="pink"
-            rDiv.style.backgroundColor = pickercolor; rDiv.style.borderColor = pickercolor; rDiv.style.outlineColor = pickercolor;
-            rDiv.style.top = `${y}px`;
-            rDiv.style.left = `${x - 3 - 6}px`;
-            rDiv.dataset.objid = event.target.id;
-            rDiv.onfocus = se(event)
-            // rDiv.ondragend = "setDraggedEnd(event)"
-            // rDiv.ontouchstart = "setTDraggedStyle(event)"
-            // rDiv.ontouchmove = "setTDraggedEnd(event)"
-            main.appendChild(rDiv);
-            const lDiv = rDiv.cloneNode(true);
-            lDiv.style.left = `${x + w}px`;
+            const lDiv = document.createElement('input');
+            lDiv.readOnly = true;
+            lDiv.classList.add('resizer');
+            lDiv.style.width = pickerW + "px"; lDiv.style.height = pickerH + "px"; lDiv.style.padding = "0px";
+            lDiv.style.zIndex = "99999"; lDiv.style.position = "absolute";
+            lDiv.style.color = pickercolor; lDiv.style.backgroundColor = "transparent"; lDiv.style.border = "none"; lDiv.style.outline = "none";
+            lDiv.style.top = `${y}px`;
+            lDiv.style.left = `${x}px`;
+            lDiv.dataset.objid = event.target.id; lDiv.dataset.left = x; lDiv.dataset.width = Number(event.target.style.width.replace("px", ""));
+            lDiv.value = "⇔";
+            lDiv.addEventListener('focus', (event) => {
+                resizeFocus(event);
+            });
+            lDiv.addEventListener('blur', (event) => {
+                resizeBlur(event);
+            });
+            lDiv.addEventListener('touchstart', (event) => {
+                event.target.focus();
+            });
             main.appendChild(lDiv);
+            const rDiv = lDiv.cloneNode(true);
+            rDiv.style.left = `${x + w - pickerW}px`; rDiv.dataset.right = x + w;
+            rDiv.value = "⇔";
+            rDiv.addEventListener('focus', (event) => {
+                resizeFocus(event);
+            });
+            rDiv.addEventListener('blur', (event) => {
+                resizeBlur(event);
+            });
+            rDiv.addEventListener('touchstart', (event) => {
+                event.target.focus();
+            });
+            main.appendChild(rDiv);
         }
         //blur
         function wideBlur(event) {

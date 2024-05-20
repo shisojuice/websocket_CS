@@ -75,7 +75,7 @@ public class WebSocketScheduleController : ControllerBase
             string attr = " id=" + log.id
                         + @" style=""height=15px;width:" + log.w + "px; position:absolute;left:" + log.x + "px;top:" + log.y + "px;z-index:" + log.z + @";background-color:" + log.bkc + @";"""
                         + " value=" + log.value
-                        + @" draggable=true  ondragstart=""setDraggedStyle(event)"" ondragend=""setDraggedEnd(event)""  ontouchstart=""setTDraggedStyle(event)"" ontouchmove=""setTDraggedEnd(event)""  ontouchend=""setTDraggedEnd2(event)"" onfocus=""wideFocus(event)"" onblur=""wideBlur(event)"" data-rowid=" + log.rowId
+                        + @" readonly=true draggable=true  ondragstart=""setDraggedStyle(event)"" ondragend=""setDraggedEnd(event)""  ontouchstart=""setTDraggedStyle(event)"" ontouchmove=""setTDraggedEnd(event)""  ontouchend=""setTDraggedEnd2(event)"" onfocus=""wideFocus(event)"" onblur=""wideBlur(event)"" data-rowid=" + log.rowId
                         + " title=" + strTime(log.from) + "Å`" + strTime(log.to) + "_" + log.value;
             board.objhtml = board.objhtml + @"<input" + attr + "></input>";
         }
