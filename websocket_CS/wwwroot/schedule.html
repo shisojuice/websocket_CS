@@ -53,6 +53,15 @@
                 max-width: 59px;
                 background-color: white; /* グリッドセルの背景色 */
             }
+
+        .contextlist > div {
+            background-color: white; /* グリッドセルの背景色 */
+            cursor: pointer;
+        }
+
+        #list_close {
+            background-color: lightpink; /* グリッドセルの背景色 */
+        }
     </style>
 </head>
 <body>
@@ -403,8 +412,8 @@
             lDiv.readOnly = true;
             lDiv.classList.add('resizer');
             lDiv.style.width = pickerW + "px"; lDiv.style.height = pickerH + "px"; lDiv.style.padding = "0px";
-            lDiv.style.zIndex = "9999"; lDiv.style.position = "absolute";
-            lDiv.style.color = pickercolor; lDiv.style.backgroundColor = "transparent"; lDiv.style.border = "none"; lDiv.style.outline = "none";
+            lDiv.style.zIndex = "9900"; lDiv.style.position = "absolute";
+            lDiv.style.color = pickercolor; lDiv.style.backgroundColor = "transparent"; lDiv.style.cursor = "pointer"; lDiv.style.border = "none"; lDiv.style.outline = "none";
             lDiv.style.top = `${y}px`;
             lDiv.style.left = `${x}px`;
             lDiv.dataset.objid = event.target.id; lDiv.dataset.left = x; lDiv.dataset.offsetwidth = w;
@@ -432,18 +441,76 @@
                 event.target.focus();
             });
             main.appendChild(rDiv);
+            // 分単位表示Div
             const popDiv = document.createElement('div');
             popDiv.id = "popdiver";
             popDiv.classList.add('resizer');
             popDiv.style.width = pickerW * 3 + "px"; popDiv.style.height = pickerH + "px"; popDiv.style.padding = "0px";
-            popDiv.style.zIndex = "99999"; popDiv.style.position = "absolute";
+            popDiv.style.zIndex = "9920"; popDiv.style.position = "absolute";
             popDiv.style.color = "black"; popDiv.style.backgroundColor = "pink"; popDiv.style.border = "none"; popDiv.style.outline = "none";
             popDiv.style.top = `${y - pickerH}px`;
             popDiv.style.visibility = "hidden";
             main.appendChild(popDiv);
+            // 一覧表示Div
+            const listDiv = document.createElement('div');
+            listDiv.id = "listdiver";
+            listDiv.classList.add('resizer');
+            listDiv.classList.add('contextlist');
+            listDiv.style.width = pickerW * 12 + "px"; listDiv.style.height = pickerH * 4 + "px"; listDiv.style.padding = "0px";
+            listDiv.style.zIndex = "9910"; listDiv.style.position = "absolute";
+            listDiv.style.display = "grid"; listDiv.style.gridTemplateColumns = "repeat(2, 1fr)"; listDiv.style.gridTemplateRows = "repeat(3, 1fr)"; listDiv.style.gap = "1px";
+            listDiv.style.color = "black"; listDiv.style.backgroundColor = "gray"; listDiv.style.border = "1px solid black";
+            listDiv.style.left = `${x}px`;
+            listDiv.style.top = `${y + pickerH + 5}px`;
+            listDiv.innerHTML = `
+                    <div id="list_edit" data-objid=${event.target.id} onclick="list_edit(event)">📝編集</div>
+                    <div id="list_close" data-objid=${event.target.id}  onclick="list_close(event)" >❌閉じる</div>
+                    <div id="list_delete" data-objid=${event.target.id} onclick="list_delete(event)" >🗑️削除</div>
+                    <div id="list_register" data-objid=${event.target.id} onclick="list_register(event)" >📚一括登録</div>
+                    <div id="list_front" data-objid=${event.target.id} onclick="list_front(event)" >⏮️最前へ</div>
+                    <div id="list_behind" data-objid=${event.target.id} onclick="list_behind(event)" >⏭️最後へ</div>`;
+            main.appendChild(listDiv);
+
         }
         //blur
         function wideBlur(event) {
+        }
+        function list_close(event) {
+            document.querySelectorAll(".resizer").forEach((x) => { x.remove(); });
+        }
+        function list_edit(event) {
+            document.querySelectorAll(".resizer").forEach((x) => { x.remove(); });
+            //sendData();
+        }
+        function list_delete(event) {
+            const objId = event.target.dataset.objid;
+            document.getElementById(objId).remove();
+            document.querySelectorAll(".resizer").forEach((x) => { x.remove(); });
+            sendData();
+        }
+        function list_register(event) {
+            document.querySelectorAll(".resizer").forEach((x) => { x.remove(); });
+            //sendData();
+        }
+        function list_front(event) {
+            const objId = event.target.dataset.objid;
+            const rowId = document.getElementById(objId).dataset.rowid;
+            document.querySelectorAll('input[data-rowid="' + rowId + '"]').forEach((x) => {
+                if (x.id == objId) { x.style.zIndex = 2; }
+                else { x.style.zIndex = 1; }
+            });
+            document.querySelectorAll(".resizer").forEach((x) => { x.remove(); });
+            sendData();
+        }
+        function list_behind(event) {
+            const objId = event.target.dataset.objid;
+            const rowId = document.getElementById(objId).dataset.rowid;
+            document.querySelectorAll('input[data-rowid="' + rowId + '"]').forEach((x) => {
+                if (x.id == objId) { x.style.zIndex = 1; }
+                else { x.style.zIndex = 2; }
+            });
+            document.querySelectorAll(".resizer").forEach((x) => { x.remove(); });
+            sendData();
         }
     </script>
 </body>
