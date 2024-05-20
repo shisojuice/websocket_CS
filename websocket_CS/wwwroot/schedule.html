@@ -11,8 +11,8 @@
 
         #main {
             padding: 15px;
-            max-width: calc(90px + (60px * 24) + 24px);
-            min-width: calc(90px + (60px * 24) + 24px);
+            max-width: calc(90px + (59px * 24) + 24px);
+            min-width: calc(90px + (59px * 24) + 24px);
             display: grid;
             grid-template-columns: repeat(2, 1fr);
         }
@@ -37,8 +37,8 @@
             }
 
         .grid-maincontainer {
-            max-width: calc((60px * 24) + 24px);
-            min-width: calc((60px * 24) + 24px);
+            max-width: calc((59px * 24) + 24px);
+            min-width: calc((59px * 24) + 24px);
             display: grid;
             grid-template-columns: repeat(24, 1fr); /* 24列 */
             gap: 1px; /* 罫線の太さ */
@@ -49,8 +49,8 @@
             .grid-maincontainer > div {
                 min-height: 30px;
                 max-height: 30px;
-                min-width: 60px;
-                max-width: 60px;
+                min-width: 59px;
+                max-width: 59px;
                 background-color: white; /* グリッドセルの背景色 */
             }
     </style>
@@ -137,9 +137,9 @@
         let initialTouchX, initialTouchY;
         // 要素の初期位置
         let initialElementX, initialElementY;
-
-        const minL = 115
-        const maxR = 1575
+        const bpW = 8; // border2 pad2 pad2 border2
+        const minL = 112
+        const maxR = 1550
         //start
         function setDraggedStyle(event) {
             document.querySelectorAll(".resizer").forEach((x) => { x.remove(); });
@@ -157,17 +157,40 @@
             initialElementY = event.target.offsetTop;
         }
         //end(move)
-        function Titletime(st, w) {
-            const hh1 = Math.floor(st / 60).toString().padStart(2, '0');
-            const mm1 = (st % 60).toString().padStart(2, '0');
-            const hh2 = Math.floor((st + w) / 60).toString().padStart(2, '0');
-            const mm2 = ((st + w) % 60).toString().padStart(2, '0');
-            return hh1 + ":" + mm1 + "～" + hh2 + ":" + mm2
+        function Titletime(x, ost, ow) {
+            const st = ost;
+            const w = ow;
+            // From
+            let rawmm = st % 60;
+            let diffm05 = rawmm % 5;
+            let diff1 = 0;
+            if (diffm05 == 0) { diff1 = 0; }
+            else if (diffm05 <= 2) { diff1 = 0 - diffm05; }
+            else { diff1 = 5 - diffm05; }
+            const hh1 = Math.floor((st + diff1) / 60).toString().padStart(2, '0');
+            const mm1 = ((st + diff1) % 60).toString().padStart(2, '0');
+            // To
+            rawmm = (st + w) % 60;
+            diffm05 = rawmm % 5;
+            let diff2 = 0;
+            if (diffm05 == 0) { diff2 = 0; }
+            else if (diffm05 <= 2) { diff2 = 0 - diffm05; }
+            else { diff2 = 5 - diffm05; }
+            const hh2 = Math.floor((st + w + diff2) / 60).toString().padStart(2, '0');
+            const mm2 = ((st + w + diff2) % 60).toString().padStart(2, '0');
+            return { tx: x + diff1, tw: w + diff2 - bpW, tm: hh1 + ":" + mm1 + "～" + hh2 + ":" + mm2 }
         }
-        function AdjustX(x, w) {
-            if (x < minL) return { x: minL, time: Titletime(minL - minL, w) };
-            if (x + w > maxR) return { x: maxR - w, time: Titletime(maxR - w - minL, w) };
-            return { x: x, time: Titletime(x - minL, w) };
+        function AdjustX(x, ow) {
+            if (x < minL) {
+                const t_time = Titletime(minL, minL - minL, ow);
+                return { x: t_time.tx, w: t_time.tw, time: t_time.tm };
+            }
+            if (x + ow > maxR) {
+                const t_time = Titletime(maxR - ow, maxR - ow - minL, ow);
+                return { x: t_time.tx, w: t_time.tw, time: t_time.tm };
+            }
+            const t_time = Titletime(x, x - minL, ow);
+            return { x: t_time.tx, w: t_time.tw, time: t_time.tm };
         }
         function AdjustY(y) {
             const rowH = 30;
@@ -191,6 +214,7 @@
             const adX = AdjustX(x, w);
             event.target.title = adX.time + "_" + event.target.value;
             event.target.style.left = `${adX.x}px`;
+            event.target.style.width = `${adX.w}px`;
 
             const adY = AdjustY(y);
             const rowid = document.querySelector('[data-roworder="' + adY.ix + '"]').dataset.rowid;
@@ -241,27 +265,54 @@
         const pickerW = 15;
         const pickerH = 20;
         let resizeEle, resizer_Ele;
+        function Divtime(ost, ow, bFrom) {
+            const st = ost;
+            const w = ow;
+            let rawmm, diffm05;
+            if (bFrom) {
+                // From
+                rawmm = st % 60;
+                diffm05 = rawmm % 5;
+                let diff1 = 0;
+                if (diffm05 == 0) { diff1 = 0; }
+                else if (diffm05 <= 2) { diff1 = 0 - diffm05; }
+                else { diff1 = 5 - diffm05; }
+                const mm1 = ((st + diff1) % 60).toString().padStart(2, '0');
+                return mm1
+            }
+            // To
+            rawmm = (st + w) % 60;
+            diffm05 = rawmm % 5;
+            let diff2 = 0;
+            if (diffm05 == 0) { diff2 = 0; }
+            else if (diffm05 <= 2) { diff2 = 0 - diffm05; }
+            else { diff2 = 5 - diffm05; }
+            const mm2 = ((st + w + diff2) % 60).toString().padStart(2, '0');
+            return mm2
+        }
         function onResizeMove_L(event) {
             requestAnimationFrame(() => {
                 if (minL > event.clientX) return;
                 if (maxR < event.clientX) return;
-                if (Number(resizer_Ele.dataset.width) + Number(resizer_Ele.dataset.left) - event.clientX < 5) return;
+                if (Number(resizer_Ele.dataset.offsetwidth) + Number(resizer_Ele.dataset.left) - event.clientX < 5) return;
                 resizeEle.style.left = event.clientX + "px";
-                resizeEle.style.width = Number(resizer_Ele.dataset.width) + Number(resizer_Ele.dataset.left) - event.clientX + "px";
+                resizeEle.style.width = Number(resizer_Ele.dataset.offsetwidth) - bpW + Number(resizer_Ele.dataset.left) - event.clientX + "px";
                 resizer_Ele.style.left = event.clientX + "px";
-                const adX = AdjustX(resizeEle.offsetLeft, resizeEle.offsetWidth);
-                resizeEle.title = adX.time + "_" + resizeEle.value;
+                const popDiv = document.getElementById("popdiver"); popDiv.style.visibility = "visible";
+                popDiv.style.left = event.clientX + "px";
+                popDiv.innerText = Divtime(event.clientX - minL, resizer_Ele.offsetWidth, true) + "分";
             });
         }
         function onResizeMove_R(event) {
             requestAnimationFrame(() => {
                 if (minL > event.clientX) return;
                 if (maxR < event.clientX) return;
-                if (Number(resizer_Ele.dataset.width) + event.clientX - Number(resizer_Ele.dataset.right) < 5) return;
-                resizeEle.style.width = Number(resizer_Ele.dataset.width) + event.clientX - Number(resizer_Ele.dataset.right) + "px";
+                if (Number(resizer_Ele.dataset.offsetwidth) + event.clientX - Number(resizer_Ele.dataset.right) < 5) return;
+                resizeEle.style.width = Number(resizer_Ele.dataset.offsetwidth) - bpW + event.clientX - Number(resizer_Ele.dataset.right) + "px";
                 resizer_Ele.style.left = event.clientX - pickerW + "px";
-                const adX = AdjustX(resizeEle.offsetLeft, resizeEle.offsetWidth);
-                resizeEle.title = adX.time + "_" + resizeEle.value;
+                const popDiv = document.getElementById("popdiver"); popDiv.style.visibility = "visible";
+                popDiv.style.left = event.clientX - pickerW + "px";
+                popDiv.innerText = Divtime(event.clientX - pickerW - minL, resizer_Ele.offsetWidth, false) + "分";
             });
         }
         let touchend_resize = false; // touchendが、resizeendかclickかを判定
@@ -270,10 +321,13 @@
                 const touch = event.touches[0]; // タッチを取得
                 if (minL > touch.clientX) return;
                 if (maxR < touch.clientX) return;
-                if (Number(resizer_Ele.dataset.width) + Number(resizer_Ele.dataset.left) - touch.clientX < 5) return;
+                if (Number(resizer_Ele.dataset.offsetwidth) + Number(resizer_Ele.dataset.left) - touch.clientX < 5) return;
                 resizeEle.style.left = touch.clientX + "px";
-                resizeEle.style.width = Number(resizer_Ele.dataset.width) + Number(resizer_Ele.dataset.left) - touch.clientX + "px";
+                resizeEle.style.width = Number(resizer_Ele.dataset.offsetwidth) - bpW + Number(resizer_Ele.dataset.left) - touch.clientX + "px";
                 resizer_Ele.style.left = touch.clientX + "px";
+                const popDiv = document.getElementById("popdiver"); popDiv.style.visibility = "visible";
+                popDiv.style.left = touch.clientX + "px";
+                popDiv.innerText = Divtime(touch.clientX - minL, resizer_Ele.offsetWidth, true) + "分";
                 touchend_resize = true;
             });
         }
@@ -282,9 +336,12 @@
                 const touch = event.touches[0]; // タッチを取得
                 if (minL > touch.clientX) return;
                 if (maxR < touch.clientX) return;
-                if (Number(resizer_Ele.dataset.width) + touch.clientX - Number(resizer_Ele.dataset.right) < 5) return;
-                resizeEle.style.width = Number(resizer_Ele.dataset.width) + touch.clientX - Number(resizer_Ele.dataset.right) + "px";
+                if (Number(resizer_Ele.dataset.offsetwidth) + touch.clientX - Number(resizer_Ele.dataset.right) < 5) return;
+                resizeEle.style.width = Number(resizer_Ele.dataset.offsetwidth) - bpW + touch.clientX - Number(resizer_Ele.dataset.right) + "px";
                 resizer_Ele.style.left = touch.clientX - pickerW + "px";
+                const popDiv = document.getElementById("popdiver"); popDiv.style.visibility = "visible";
+                popDiv.style.left = touch.clientX - pickerW + "px";
+                popDiv.innerText = Divtime(touch.clientX - pickerW - minL, resizer_Ele.offsetWidth, false) + "分";
                 touchend_resize = true;
             });
         }
@@ -295,6 +352,10 @@
             document.removeEventListener("touchmove", onTResizeMove_L);
             document.removeEventListener("mouseup", onResizeUp);
             document.removeEventListener("touchend", onTResizeUp);
+            const adX = AdjustX(resizeEle.offsetLeft, resizeEle.offsetWidth);
+            resizeEle.title = adX.time + "_" + resizeEle.value;
+            resizeEle.style.left = `${adX.x}px`;
+            resizeEle.style.width = `${adX.w}px`;
             resizer_Ele.focus(); resizer_Ele.blur();
         }
         function onTResizeUp(event) {
@@ -342,11 +403,11 @@
             lDiv.readOnly = true;
             lDiv.classList.add('resizer');
             lDiv.style.width = pickerW + "px"; lDiv.style.height = pickerH + "px"; lDiv.style.padding = "0px";
-            lDiv.style.zIndex = "99999"; lDiv.style.position = "absolute";
+            lDiv.style.zIndex = "9999"; lDiv.style.position = "absolute";
             lDiv.style.color = pickercolor; lDiv.style.backgroundColor = "transparent"; lDiv.style.border = "none"; lDiv.style.outline = "none";
             lDiv.style.top = `${y}px`;
             lDiv.style.left = `${x}px`;
-            lDiv.dataset.objid = event.target.id; lDiv.dataset.left = x; lDiv.dataset.width = Number(event.target.style.width.replace("px", ""));
+            lDiv.dataset.objid = event.target.id; lDiv.dataset.left = x; lDiv.dataset.offsetwidth = w;
             lDiv.value = "⇔";
             lDiv.addEventListener('focus', (event) => {
                 resizeFocus(event);
@@ -371,6 +432,15 @@
                 event.target.focus();
             });
             main.appendChild(rDiv);
+            const popDiv = document.createElement('div');
+            popDiv.id = "popdiver";
+            popDiv.classList.add('resizer');
+            popDiv.style.width = pickerW * 3 + "px"; popDiv.style.height = pickerH + "px"; popDiv.style.padding = "0px";
+            popDiv.style.zIndex = "99999"; popDiv.style.position = "absolute";
+            popDiv.style.color = "black"; popDiv.style.backgroundColor = "pink"; popDiv.style.border = "none"; popDiv.style.outline = "none";
+            popDiv.style.top = `${y - pickerH}px`;
+            popDiv.style.visibility = "hidden";
+            main.appendChild(popDiv);
         }
         //blur
         function wideBlur(event) {
