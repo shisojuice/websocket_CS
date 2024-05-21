@@ -62,9 +62,20 @@
         #list_close {
             background-color: lightpink; /* グリッドセルの背景色 */
         }
+
+        .mergeobj {
+            background-color: red;
+            z-index: 0;
+            position: absolute;
+            min-height: 30px;
+            max-height: 30px;
+            padding: 0px;
+        }
     </style>
+    <script src="modal.js"></script>
 </head>
 <body>
+    <div id="loading"></div>
     <h1>WebSocket Schedule Sample Application</h1>
     <div id="main">
     </div>
@@ -143,7 +154,7 @@
         // 要素をdragでX軸Y軸方向に移動させる
         //
         // ドラッグ開始時のタッチ位置
-        let initialTouchX, initialTouchY;
+        let initialTouchX, initialTouchY, initialRowId;
         // 要素の初期位置
         let initialElementX, initialElementY;
         const bpW = 8; // border2 pad2 pad2 border2
@@ -157,6 +168,7 @@
             initialMouseY = event.clientY;
             initialElementX = event.target.offsetLeft;
             initialElementY = event.target.offsetTop;
+            initialRowId = event.target.dataset.rowid;
         }
         function setTDraggedStyle(event) {
             const touch = event.touches[0]; // タッチを取得
@@ -164,6 +176,7 @@
             initialTouchY = touch.clientY;
             initialElementX = event.target.offsetLeft;
             initialElementY = event.target.offsetTop;
+            initialRowId = event.target.dataset.rowid;
         }
         //end(move)
         function Titletime(x, ost, ow) {
@@ -216,7 +229,7 @@
             if (y <= minT) return { y: minT + 5, ix: 0 };
             return { y: rowTop_max + 5, ix: rowcount - 1 };
         }
-        function setPosition(dx, dy) {
+        function setPosition(event, dx, dy) {
             const x = initialElementX + dx; // 要素の初期座標に移動分追加
             const y = initialElementY + dy;
             const w = event.target.offsetWidth;
@@ -230,7 +243,41 @@
             event.target.dataset.rowid = rowid;
             event.target.style.top = `${adY.y}px`;
         }
+        function setRowMerge(rowId) {// 要素の重なりを検知する
+            console.log("mmme")
+            let prevX = null;
+            document.querySelectorAll('div.mergeobj[data-rowid="' + rowId + '"]').forEach((x) => { x.remove(); });
+            const mergeDiv = document.createElement('div');
+            mergeDiv.classList.add('mergeobj');
+            mergeDiv.dataset.rowid = rowId;
+            document.querySelectorAll('input[data-rowid="' + rowId + '"]').forEach((x) => {
+                console.log("mmm1", x, prevX)
+                if (prevX != null) {
+                    console.log("mmm11")
+                    if (prevX.offsetLeft <= x.offsetLeft && (prevX.offsetLeft + prevX.offsetWidth) > x.offsetLeft) {
+                        console.log("mmm2")
+                        const cDiv = mergeDiv.cloneNode(true);
+                        cDiv.style.top = `${x.offsetTop - 5}px`;
+                        cDiv.style.left = `${x.offsetLeft}px`;
+                        const w = (prevX.offsetLeft + prevX.offsetWidth) > (x.offsetLeft + x.offsetWidth) ? x.offsetWidth : (prevX.offsetLeft + prevX.offsetWidth) - x.offsetLeft;
+                        cDiv.style.width = `${w}px`;
+                        main.appendChild(cDiv);
+                    }
+                    if (x.offsetLeft <= prevX.offsetLeft && (x.offsetLeft + x.offsetWidth) > prevX.offsetLeft) {
+                        console.log("mmm3")
+                        const cDiv = mergeDiv.cloneNode(true);
+                        cDiv.style.top = `${x.offsetTop - 5}px`;
+                        cDiv.style.left = `${prevX.offsetLeft}px`;
+                        const w = (x.offsetLeft + x.offsetWidth) > (prevX.offsetLeft + prevX.offsetWidth) ? prevX.offsetWidth : (x.offsetLeft + x.offsetWidth) - prevX.offsetLeft;
+                        cDiv.style.width = `${w}px`;
+                        main.appendChild(cDiv);
+                    }
+                }
+                prevX = x;
+            });
+        }
         function sendData() {
+            document.querySelectorAll(".resizer").forEach((x) => { x.remove(); });
             if (!socket || socket.readyState !== WebSocket.OPEN) {
                 alert("socket not connected");
             }
@@ -242,7 +289,9 @@
             event.preventDefault();
             const dx = event.clientX - initialMouseX;
             const dy = event.clientY - initialMouseY;
-            setPosition(dx, dy);
+            setPosition(event, dx, dy);
+            setRowMerge(initialRowId);
+            setRowMerge(event.target.dataset.rowid);
             sendData();
         }
         let touchend_drag = false; // touchendが、dragendかclickかを判定
@@ -251,7 +300,9 @@
             const touch = event.touches[0]; // タッチを取得
             const dx = touch.clientX - initialTouchX;
             const dy = touch.clientY - initialTouchY;
-            setPosition(dx, dy);
+            setPosition(event, dx, dy);
+            setRowMerge(initialRowId);
+            setRowMerge(event.target.dataset.rowid);
             touchend_drag = true;
         }
         function setTDraggedEnd2(event) {
@@ -365,6 +416,7 @@
             resizeEle.title = adX.time + "_" + resizeEle.value;
             resizeEle.style.left = `${adX.x}px`;
             resizeEle.style.width = `${adX.w}px`;
+            setRowMerge(resizeEle.dataset.rowid);
             resizer_Ele.focus(); resizer_Ele.blur();
         }
         function onTResizeUp(event) {
@@ -375,6 +427,11 @@
             document.removeEventListener("touchmove", onTResizeMove_L);
             document.removeEventListener("mouseup", onResizeUp);
             document.removeEventListener("touchend", onTResizeUp);
+            const adX = AdjustX(resizeEle.offsetLeft, resizeEle.offsetWidth);
+            resizeEle.title = adX.time + "_" + resizeEle.value;
+            resizeEle.style.left = `${adX.x}px`;
+            resizeEle.style.width = `${adX.w}px`;
+            setRowMerge(resizeEle.dataset.rowid);
             touchend_resize = false;
             resizer_Ele.focus(); resizer_Ele.blur();
         }
@@ -397,7 +454,6 @@
             document.removeEventListener("touchmove", onTResizeMove_L);
             document.removeEventListener("mouseup", onResizeUp);
             document.removeEventListener("touchend", onTResizeUp);
-            document.querySelectorAll(".resizer").forEach((x) => { x.remove(); });
             sendData();
         }
         //focus
@@ -463,12 +519,12 @@
             listDiv.style.left = `${x}px`;
             listDiv.style.top = `${y + pickerH + 5}px`;
             listDiv.innerHTML = `
-                    <div id="list_edit" data-objid=${event.target.id} onclick="list_edit(event)">📝編集</div>
-                    <div id="list_close" data-objid=${event.target.id}  onclick="list_close(event)" >❌閉じる</div>
-                    <div id="list_delete" data-objid=${event.target.id} onclick="list_delete(event)" >🗑️削除</div>
-                    <div id="list_register" data-objid=${event.target.id} onclick="list_register(event)" >📚一括登録</div>
-                    <div id="list_front" data-objid=${event.target.id} onclick="list_front(event)" >⏮️最前へ</div>
-                    <div id="list_behind" data-objid=${event.target.id} onclick="list_behind(event)" >⏭️最後へ</div>`;
+                                        <div id="list_edit" data-objid=${event.target.id} onclick="list_edit(event)">📝編集</div>
+                                        <div id="list_close" data-objid=${event.target.id}  onclick="list_close(event)" >❌閉じる</div>
+                                        <div id="list_delete" data-objid=${event.target.id} onclick="list_delete(event)" >🗑️削除</div>
+                                        <div id="list_register" data-objid=${event.target.id} onclick="list_register(event)" >📚一括登録</div>
+                                        <div id="list_front" data-objid=${event.target.id} onclick="list_front(event)" >⏮️最前へ</div>
+                                        <div id="list_behind" data-objid=${event.target.id} onclick="list_behind(event)" >⏭️最後へ</div>`;
             main.appendChild(listDiv);
 
         }
@@ -478,18 +534,22 @@
         function list_close(event) {
             document.querySelectorAll(".resizer").forEach((x) => { x.remove(); });
         }
-        function list_edit(event) {
-            document.querySelectorAll(".resizer").forEach((x) => { x.remove(); });
+        async function list_edit(event) {
+            const objId = event.target.dataset.objid;
+            const ret = await showRegister(document.getElementById("loading"), false);
+            console.log(ret);
             //sendData();
         }
         function list_delete(event) {
             const objId = event.target.dataset.objid;
+            const rowId = document.getElementById(objId).dataset.rowid;
             document.getElementById(objId).remove();
-            document.querySelectorAll(".resizer").forEach((x) => { x.remove(); });
+            setRowMerge(rowId);
             sendData();
         }
-        function list_register(event) {
-            document.querySelectorAll(".resizer").forEach((x) => { x.remove(); });
+        async function list_register(event) {
+            const ret = await showRegister(document.getElementById("loading"), true);
+            console.log(ret);
             //sendData();
         }
         function list_front(event) {
@@ -499,7 +559,6 @@
                 if (x.id == objId) { x.style.zIndex = 2; }
                 else { x.style.zIndex = 1; }
             });
-            document.querySelectorAll(".resizer").forEach((x) => { x.remove(); });
             sendData();
         }
         function list_behind(event) {
@@ -509,7 +568,6 @@
                 if (x.id == objId) { x.style.zIndex = 1; }
                 else { x.style.zIndex = 2; }
             });
-            document.querySelectorAll(".resizer").forEach((x) => { x.remove(); });
             sendData();
         }
     </script>
